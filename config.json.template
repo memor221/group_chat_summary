@@ -1,0 +1,16 @@
+{
+  "api_configs": [
+    {
+      "open_ai_api_base": "https://api.openai.com/v1",
+      "open_ai_api_key": "sk-xxxxxxxxxxxxxxxxxxxxxxx",
+      "open_ai_model": "gpt-3.5-turbo"
+    },
+    {
+      "open_ai_api_base": "https://api.example.com/v1",
+      "open_ai_api_key": "sk-yyyyyyyyyyyyyyyyyyyyyyy",
+      "open_ai_model": "model-name"
+    }
+  ],
+  "max_record_quantity": 1000,
+  "black_chat_name": ["群聊1", "群聊2"]
+}
