@@ -4,6 +4,21 @@
 
 总结插件自用修改版本，原插件地址 https://github.com/wclzq/group_chat_summary
 
+## 安装
+
+1. 使用管理员命令安装
+```
+#installp https://github.com/memor221/group_chat_summary.git
+```
+2. 扫描新插件
+```
+#scanp
+```
+3. 启用插件
+```
+#enablep group_chat_summary
+```
+
 ## 功能特点
 
 - 自动记录群聊消息
