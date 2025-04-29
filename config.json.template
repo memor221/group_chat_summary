@@ -12,5 +12,6 @@
     }
   ],
   "max_record_quantity": 1000,
-  "black_chat_name": ["群聊1", "群聊2"]
+  "black_chat_name": ["群聊1", "群聊2"],
+  "delete_after_send": true
 }

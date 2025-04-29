@@ -4,6 +4,14 @@
 
 总结插件自用修改版本，原插件地址 https://github.com/wclzq/group_chat_summary
 
+## 效果
+
+### 总结样式
+![总结样式](https://i.ibb.co/ynV6k1Mt/image.jpg)
+
+### 自定义总结样式（效果随机，没有固定）
+![总结样式](https://i.ibb.co/jPSBSKrW/image.jpg)
+
 ## 安装
 
 1. 使用管理员命令安装
@@ -18,7 +26,6 @@
 ```
 #enablep group_chat_summary
 ```
-
 ## 功能特点
 
 - 自动记录群聊消息
@@ -50,6 +57,7 @@
 | api_configs | array | 支持多套 OpenAI API 配置 | 必填 |
 | max_record_quantity | number | 每个群保存的最大消息数量 | 1000 |
 | black_chat_name | array | 黑名单群聊列表 | [] |
+| delete_after_send | bool | 是否自动定时清理图片（每天03:03），true为开启，false为关闭 | true |
 
 配置示例：
 
@@ -63,7 +71,8 @@
     }
   ],
   "max_record_quantity": 1000,
-  "black_chat_name": ["群聊1", "群聊2"]
+  "black_chat_name": ["群聊1", "群聊2"],
+  "delete_after_send": true
 }
 ```
 
@@ -87,7 +96,8 @@
 3. 被加入黑名单的群聊无法使用总结功能
 4. 建议根据服务器性能适当调整 max_record_quantity 参数
 5. 如需 HTML 总结转图片，需保证 playwright 及其依赖已正确安装
-6. 如果生成结果不理想的话，更换代码处理能力好些的模型
+6. 图片自动清理功能可通过 delete_after_send 配置开关，开启时每天03:03自动清理图片目录
+7. 如果生成结果不理想的话，更换代码处理能力好些的模型
 
 ## 错误处理
 

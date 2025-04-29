@@ -15,10 +15,49 @@ import uuid
 import time
 import asyncio
 from playwright.async_api import async_playwright
+import threading
+import glob
+import schedule
+import io
 
-
+class ImageStreamWrapper:
+    """
+    Wraps io.BytesIO to provide both file-like operations (seek, read)
+    and a __len__ method returning the total size of the stream content.
+    """
+    def __init__(self, image_bytes: bytes):
+        self._stream = io.BytesIO(image_bytes)
+        # Store the length derived from the initial bytes
+        self._length = len(image_bytes)
+    def __len__(self):
+        """Returns the total length of the underlying bytes."""
+        return self._length
+    def __getattr__(self, name):
+        """Delegates any other attribute/method access to the underlying BytesIO stream."""
+        # logger.debug(f"ImageStreamWrapper: Delegating '{name}'") # Optional: for debugging delegation
+        return getattr(self._stream, name)
+    # Optional: Explicit delegation for commonly used methods if __getattr__ proves problematic
+    # or for slight potential performance gain (usually negligible).
+    def read(self, *args, **kwargs):
+         # logger.debug(f"ImageStreamWrapper: Calling read()") # Optional debug
+         return self._stream.read(*args, **kwargs)
+    def seek(self, *args, **kwargs):
+         # logger.debug(f"ImageStreamWrapper: Calling seek()") # Optional debug
+         return self._stream.seek(*args, **kwargs)
+    def tell(self, *args, **kwargs):
+         # logger.debug(f"ImageStreamWrapper: Calling tell()") # Optional debug
+         return self._stream.tell(*args, **kwargs)
+    def close(self, *args, **kwargs):
+        # logger.debug(f"ImageStreamWrapper: Calling close()") # Optional debug
+        # It's good practice to delegate close as well
+        return self._stream.close(*args, **kwargs)
+    # Add seekable if needed, though __getattr__ should cover hasattr checks too
+    def seekable(self):
+        # logger.debug(f"ImageStreamWrapper: Calling seekable()") # Optional debug
+        return self._stream.seekable()
+    
 QL_PROMPT = '''
-我给你一份json格式的群聊内容：群聊结构如下：
+我给你一份json格式的群聊内容：群聊结构如下（注意：忽略所有机器人指令消息）：
 user是发言者，content是发言内容,time是发言时间：
 [{'user': '秋风', 'content': '总结',time:'2025-02-26 09:50:53'},{'user': '秋风', 'content': '你好',time:'2025-02-26 09:50:53'},{'user': '小王', 'content': '你好',time:'2025-02-26 09:50:53'}]
 -------分割线-------
@@ -61,7 +100,7 @@ user是发言者，content是发言内容,time是发言时间：
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>[群名称]群聊总结 - [日期]</title>
+    <title>{group_name}群聊总结 - [日期]</title>
     <style>
         /* 严格定义的CSS样式，确保风格一致性 */
         :root {
@@ -779,7 +818,7 @@ user是发言者，content是发言内容,time是发言时间：
 
     <!-- 8. 页面底部 -->
     <footer>
-        <p>数据来源：[群名称]聊天记录</p>
+        <p>数据来源：{group_name}群聊天记录</p>
         <p>生成时间：<span class="generation-time">[当前时间]</span></p>
         <p>统计周期：[日期] [时间范围]</p>
         <p class="disclaimer">免责声明：本报告内容基于群聊公开讨论，如有不当内容或侵权问题请联系管理员处理。</p>
@@ -806,6 +845,8 @@ class GroupChatSummary(Plugin):
     black_chat_name=[]
     curdir = os.path.dirname(__file__)
     db_path = os.path.join(curdir, "chat_records.db")
+    # 存储活跃图片路径，避免定时任务删除正在使用的图片
+    active_image_files = {}
     def __init__(self):
         
         super().__init__()
@@ -827,9 +868,14 @@ class GroupChatSummary(Plugin):
                 
             self.max_record_quantity = self.config.get("max_record_quantity", 1000)
             self.black_chat_name = self.config.get("black_chat_name", [])
+            self.delete_after_send = self.config.get("delete_after_send", True)
             
             # 初始化数据库
             self.init_database()
+            
+            # 启动定时清理任务（每天03:03）
+            if self.delete_after_send:
+                self._start_daily_image_cleanup()
             
             logger.info("[group_chat_summary] inited")
             self.handlers[Event.ON_HANDLE_CONTEXT] = self.on_handle_context
@@ -866,31 +912,30 @@ class GroupChatSummary(Plugin):
             return
         msg: ChatMessage = e_context["context"]["msg"]
         content = e_context["context"].content.strip()
-        
         # 匹配两种命令格式：总结聊天 30 / 总结 3小时
         if content.startswith("总结聊天") or content.startswith("总结"):
             reply = Reply()
-            reply.type = ReplyType.TEXT
-            
+            # {{ - reply.type = ReplyType.TEXT # Moved type assignment later }}
             if msg.other_user_nickname in self.black_chat_name:
                 reply.content = "我母鸡啊"
+                # {{ + }}
+                reply.type = ReplyType.TEXT
                 e_context["reply"] = reply
                 e_context.action = EventAction.BREAK_PASS
                 return
-            
             # 解析参数
             cmd_parts = content.split(maxsplit=2)  # 最多分割2次，确保自定义提示保持完整
             if len(cmd_parts) < 2:
                 reply.content = "命令格式错误，示例：总结聊天 30 或 总结 3小时 或 总结聊天 30 自定义提示"
+                # {{ + }}
+                reply.type = ReplyType.TEXT
                 e_context["reply"] = reply
                 e_context.action = EventAction.BREAK_PASS
                 return
-            
             # 提取自定义提示（如果有）
             custom_prompt = None
             if len(cmd_parts) >= 3:
                 custom_prompt = cmd_parts[2].strip()
-            
             # 判断是按条数还是按小时
             param = cmd_parts[1]
             time_mode = "小时" in param
@@ -901,7 +946,6 @@ class GroupChatSummary(Plugin):
                     hours = int(hours_part.replace("小时", ""))
                     time_threshold = datetime.now() - timedelta(hours=hours)
                     time_str = time_threshold.strftime("%Y-%m-%d %H:%M:%S")
-                    
                     # 如果自定义提示为None但param中有空格（如"3小时 自定义提示"），则提取提示
                     if custom_prompt is None and " " in param:
                         custom_prompt = param.split(" ", 1)[1].strip()
@@ -909,16 +953,17 @@ class GroupChatSummary(Plugin):
                     # 考虑用户可能输入"总结聊天 30 自定义提示"格式
                     num_part = param.split()[0] if " " in param else param
                     number_int = int(num_part)
-                    
                     # 如果自定义提示为None但param中有空格（如"30 自定义提示"），则提取提示
                     if custom_prompt is None and " " in param:
                         custom_prompt = param.split(" ", 1)[1].strip()
             except ValueError:
                 reply.content = "参数必须是数字，例如：总结 3小时 或 总结聊天 30 或 总结聊天 30 自定义提示"
+                # {{ + }}
+                reply.type = ReplyType.TEXT
                 e_context["reply"] = reply
                 e_context.action = EventAction.BREAK_PASS
                 return
-            
+            generated_summary_content = "" # 用于存储生成的文本总结
             if e_context["context"]["isgroup"]:
                 try:
                     with sqlite3.connect(self.db_path) as conn:
@@ -926,49 +971,46 @@ class GroupChatSummary(Plugin):
                         if time_mode:
                             # 按时间范围查询
                             cursor.execute('''
-                                SELECT user_nickname, content, create_time 
-                                FROM chat_records 
+                                SELECT user_nickname, content, create_time
+                                FROM chat_records
                                 WHERE group_id = ? AND create_time >= ?
                                 ORDER BY create_time DESC
                             ''', (msg.other_user_id, time_str))
                         else:
                             # 按条数查询（原逻辑）
                             cursor.execute('''
-                                SELECT user_nickname, content, create_time 
-                                FROM chat_records 
-                                WHERE group_id = ? 
-                                ORDER BY create_time DESC 
+                                SELECT user_nickname, content, create_time
+                                FROM chat_records
+                                WHERE group_id = ?
+                                ORDER BY create_time DESC
                                 LIMIT ?
                             ''', (msg.other_user_id, number_int))
-                        
                         records = cursor.fetchall()
                         chat_list = [
                             {"user": record[0], "content": record[1], "time": record[2]}
                             for record in records
                         ]
                         chat_list.reverse()  # 保持时间正序
-                        
                         # 根据是否有自定义提示来组装请求内容
                         if custom_prompt:
                             # 分割QL_PROMPT，保留分割线前面的内容
                             prompt_parts = QL_PROMPT.split("-------分割线-------")
                             # 用户自定义提示替换默认提示
-                            cont = prompt_parts[0] + "-------分割线-------" + custom_prompt + "----聊天记录如下：" + json.dumps(chat_list, ensure_ascii=False)
+                            cont = prompt_parts[0] + "#注意：不需要列举聊天记录；请以清晰的层次结构和简洁的语言，通过分析和合理的猜测推断，回答问题，并将内容转换成HTML代码，要求:页面美观自然，柔和色彩，清晰一目了然，不同内容板块可以使用不同的颜色条作为区分，直接输出代码，不需要其他说明，问题：" + custom_prompt + "----聊天记录如下：" + json.dumps(chat_list, ensure_ascii=False)
                         else:
                             # 使用原有默认提示
                             cont = QL_PROMPT + "----聊天记录如下：" + json.dumps(chat_list, ensure_ascii=False)
-                        
                         group_name = e_context["context"].get("group_name") or "群聊"
                         # 替换群名称占位符
                         cont = cont.replace("{group_name}", group_name)
-                        reply.content = self.shyl(cont)
+                        generated_summary_content = self.shyl(cont) # Store summary content
                 except Exception as e:
                     logger.error(f"[group_chat_summary]获取聊天记录异常：{e}")
-                    reply.content = "获取聊天记录失败"
+                    generated_summary_content = "获取聊天记录失败" # Store error message
             else:
-                reply.content = "只做群聊总结"
-            # ====== 新增：HTML转图片逻辑 ======
-            is_html, html_raw = self._is_html_content(reply.content)
+                generated_summary_content = "只做群聊总结" # Store message
+            # ====== HTML转图片逻辑 或 直接使用文本 ======
+            is_html, html_raw = self._is_html_content(generated_summary_content)
             if is_html:
                 html_block = self.extract_html_block(html_raw)
                 if html_block:
@@ -980,27 +1022,40 @@ class GroupChatSummary(Plugin):
                     image_path = os.path.join(image_dir, image_name)
                     # 截图
                     try:
-                        asyncio.run(self.html_to_image(html_block, image_path, 800, 90, 0.5))
+                        asyncio.run(self.html_to_image(html_block, image_path, 1200, 90, 0.5))
                         if os.path.exists(image_path) and os.path.getsize(image_path) > 0:
-                            reply = Reply()
-                            reply.type = ReplyType.IMAGE
-                            reply.content = open(image_path, 'rb')
-                            # 自动清理图片
-                            def _del_img_later(path):
-                                import threading
-                                def _del():
-                                    time.sleep(1)
-                                    try:
-                                        if os.path.exists(path):
-                                            os.remove(path)
-                                    except Exception as e:
-                                        logger.warning(f"[group_chat_summary] 图片自动清理失败: {e}")
-                                threading.Thread(target=_del, daemon=True).start()
-                            _del_img_later(image_path)
+                            try:
+                                with open(image_path, 'rb') as f:
+                                    image_content = f.read()
+                                # {{ - reply.content = io.BytesIO(image_content) }}
+                                # {{ + Use the wrapper class }}
+                                reply.content = ImageStreamWrapper(image_content)
+                                reply.type = ReplyType.IMAGE
+                            except Exception as e:
+                                logger.error(f"[group_chat_summary] 读取或包装图片文件失败: {e}")
+                                reply.content = "读取或包装图片文件失败: " + str(e)
+                                reply.type = ReplyType.TEXT # Fallback to text reply
+                        else:
+                            logger.warning(f"[group_chat_summary] HTML转图片成功，但文件无效或大小为0: {image_path}")
+                            reply.content = "HTML转图片成功，但文件无效。"
+                            reply.type = ReplyType.TEXT
                     except Exception as e:
                         logger.error(f"[group_chat_summary] HTML转图片异常: {e}")
                         reply.content = "HTML转图片失败: " + str(e)
+                        reply.type = ReplyType.TEXT
+                else:
+                    logger.warning("[group_chat_summary] 内容判定为HTML，但无法提取HTML块。")
+                    # Could not extract HTML block, send raw summary
+                    reply.content = generated_summary_content
+                    reply.type = ReplyType.TEXT
+            else:
+                 # Content is not HTML, send as text
+                reply.content = generated_summary_content
+                reply.type = ReplyType.TEXT
             # ====== END ======
+            # Ensure reply type is set if not set above (e.g., if no image processing happened)
+            if not reply.type:
+                 reply.type = ReplyType.TEXT # Default to TEXT if type wasn't assigned
             e_context["reply"] = reply
             e_context.action = EventAction.BREAK_PASS
 
@@ -1123,29 +1178,113 @@ class GroupChatSummary(Plugin):
     def _is_html_content(self, content):
         if not content or not isinstance(content, str):
             return False, None
-        if '<!DOCTYPE html' in content:
+        
+        # 清理内容便于检查
+        cleaned_content = content.strip()
+        
+        # 检查各种HTML内容格式
+        if '<!DOCTYPE html' in content or '<html' in content:
             return True, content
-        if content.strip().startswith('```html') and content.strip().endswith('```'):
-            html_body = content.strip()[7:-3].strip()
+            
+        # 检查是否为markdown代码块中的HTML (```html ... ```)
+        if cleaned_content.startswith('```html') and cleaned_content.endswith('```'):
+            html_body = cleaned_content[7:-3].strip()
             return True, html_body
-        if content.strip().startswith('```') and content.strip().endswith('```'):
-            code_body = content.strip()[3:-3].strip()
-            if '<!DOCTYPE html' in code_body:
+            
+        # 检查是否为一般代码块，内容包含HTML标记 (``` ... ```)
+        if cleaned_content.startswith('```') and cleaned_content.endswith('```'):
+            code_body = cleaned_content[3:-3].strip()
+            if '<html' in code_body or '<!DOCTYPE html' in code_body or code_body.count('<') > 5:
                 return True, code_body
-        if content.count('<') > 5 and content.count('>') > 5 and '<!DOCTYPE html' in content:
+                
+        # 检查是否包含足够的HTML标签特征
+        if (content.count('<') > 5 and content.count('>') > 5 and 
+            ('<html' in content or '<body' in content or '<div' in content or '<head' in content)):
             return True, content
+            
+        # 检查是否只包含HTML标签内容
+        if content.count('<') > 10 and content.count('>') > 10:
+            return True, content
+            
         return False, None
 
     def extract_html_block(self, content):
-        """提取 <!DOCTYPE html> 到 </html> 的完整 HTML 片段"""
-        start = content.find('<!DOCTYPE html')
-        if start == -1:
-            return None
-        end = content.find('</html>', start)
-        if end != -1:
-            return content[start:end+7]
-        else:
-            return content[start:]
+        """提取HTML内容，适应多种格式（优先检测最后一个html代码块）"""
+        # 逆向查找最后一个```html代码块
+        last_html_block = None
+        if '```html' in content:
+            # 找到最后一个```html起始位置
+            last_start = content.rfind('```html')
+            if last_start != -1:
+                # 从起始位置开始找结束标记
+                end_pos = content.find('```', last_start + 7)
+                if end_pos != -1:
+                    last_html_block = content[last_start+7:end_pos].strip()
+                else:
+                    last_html_block = content[last_start+7:].strip()
+            if last_html_block:
+                return last_html_block
+
+        # 逆向查找最后一个普通代码块
+        if '```' in content:
+            # 找最后一个```起始位置
+            last_code_start = content.rfind('```')
+            if last_code_start > 0:
+                # 向前找前一个```作为起始
+                prev_start = content.rfind('```', 0, last_code_start-1)
+                if prev_start != -1 and content[prev_start+3:prev_start+10].strip() == 'html':
+                    code_content = content[prev_start+7:last_code_start].strip()
+                    if '<html' in code_content:
+                        return code_content
+
+        # 原有检测逻辑（作为fallback）
+        if content.strip().startswith('<'):
+            return content
+            
+        # 从```html...```代码块提取
+        if '```html' in content:
+            start = content.find('```html') + 7
+            end = content.find('```', start)
+            if end != -1:
+                return content[start:end].strip()
+            else:
+                return content[start:].strip()
+                
+        # 从普通代码块提取
+        if content.strip().startswith('```'):
+            start = content.find('```') + 3
+            # 跳过第一行，以防是语言标识符
+            newline_pos = content.find('\n', start)
+            if newline_pos != -1:
+                start = newline_pos + 1
+            end = content.rfind('```')
+            if end != -1:
+                return content[start:end].strip()
+            else:
+                return content[start:].strip()
+                
+        # 提取<!DOCTYPE html>到</html>的内容
+        doctype_start = content.find('<!DOCTYPE html')
+        if doctype_start != -1:
+            html_end = content.find('</html>', doctype_start)
+            return content[doctype_start:html_end+7] if html_end != -1 else content[doctype_start:]
+        
+        return None
+                
+        # 提取<html>到</html>的内容
+        html_start = content.find('<html')
+        if html_start != -1:
+            html_end = content.find('</html>', html_start)
+            if html_end != -1:
+                return content[html_start:html_end+7]
+            else:
+                return content[html_start:]
+                
+        # 如果以上都没找到但确实包含HTML特征，返回完整内容
+        if content.count('<') > 10 and content.count('>') > 10:
+            return content
+            
+        return None
 
     async def html_to_image(self, html_content, image_path, image_width=800, image_quality=90, wait_time=0.5):
         try:
@@ -1200,5 +1339,59 @@ class GroupChatSummary(Plugin):
         except Exception as e:
             logger.error(f"[group_chat_summary] HTML转图片失败: {e}")
             raise e
+
+    def _start_daily_image_cleanup(self):
+        def cleanup():
+            image_dir = os.path.join(os.path.dirname(__file__), '../html_to_image/temp')
+            files = glob.glob(os.path.join(image_dir, '*.png'))
+            for f in files:
+                try:
+                    # 避免删除活跃的图片文件
+                    if f in self.active_image_files:
+                        continue
+                    os.remove(f)
+                except Exception as e:
+                    logger.warning(f"[group_chat_summary] 定时清理图片失败: {e}")
+        def run_schedule():
+            schedule.every().day.at("03:03").do(cleanup)
+            while True:
+                schedule.run_pending()
+                time.sleep(60)
+        t = threading.Thread(target=run_schedule, daemon=True)
+        t.start()
+
+    def on_send_reply(self, e_context: EventContext):
+        """消息发送后的回调，用于关闭文件并释放引用"""
+        try:
+            # 获取当前回复
+            reply = e_context.econtext.get("reply")
+            if reply and reply.type == ReplyType.IMAGE and hasattr(reply.content, "close"):
+                # 尝试关闭文件
+                try:
+                    reply.content.close()
+                except Exception as e:
+                    logger.warning(f"[group_chat_summary] 关闭图片文件失败: {e}")
+                
+                # 清理超过5分钟的文件引用
+                current_time = time.time()
+                expired_paths = []
+                for path, info in self.active_image_files.items():
+                    if current_time - info["time"] > 300:  # 5分钟
+                        expired_paths.append(path)
+                        if "file" in info and hasattr(info["file"], "close"):
+                            try:
+                                info["file"].close()
+                            except Exception:
+                                pass
+                
+                # 从活跃文件字典中移除过期项
+                for path in expired_paths:
+                    del self.active_image_files[path]
+        except Exception as e:
+            logger.error(f"[group_chat_summary] 消息发送回调异常: {e}")
+            
+        # 取消注册自身，避免影响其他消息
+        if Event.ON_SEND_REPLY in self.handlers:
+            del self.handlers[Event.ON_SEND_REPLY]
 
 
