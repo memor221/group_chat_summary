@@ -10,7 +10,7 @@
 ![总结样式](https://i.ibb.co/ynV6k1Mt/image.jpg)
 
 ### 自定义总结样式（效果随机，没有固定）
-![总结样式](https://i.ibb.co/jPSBSKrW/image.jpg)
+![自定义总结样式](https://i.ibb.co/jPSBSKrW/image.jpg)
 
 ## 安装
 
