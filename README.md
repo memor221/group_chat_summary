@@ -7,10 +7,10 @@
 ## 效果
 
 ### 总结样式
-![总结样式](https://i.ibb.co/ynV6k1Mt/image.jpg)
+<img src="https://i.ibb.co/MD9c14jr/image.jpg" alt="image" border="0" width="800">
 
 ### 自定义总结样式（效果随机，没有固定）
-![自定义总结样式](https://i.ibb.co/jPSBSKrW/image.jpg)
+<img src="https://i.ibb.co/pBSGSDLR/image.jpg" alt="image" border="0" width="800">
 
 ## 安装
 
