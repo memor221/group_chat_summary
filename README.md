@@ -4,13 +4,18 @@
 
 总结插件自用修改版本，原插件地址 https://github.com/wclzq/group_chat_summary
 
+群成员画像灵感来自linux.do社区
+
 ## 效果
 
 ### 总结样式
-<img src="https://i.ibb.co/MD9c14jr/image.jpg" alt="image" border="0" width="800">
+<img src="示例1.jpg"  width="800">
 
 ### 自定义总结样式（效果随机，没有固定）
-<img src="https://i.ibb.co/pBSGSDLR/image.jpg" alt="image" border="0" width="800">
+<img src="示例2.jpg"  width="800">
+
+### 群成员画像样式（效果随机，没有固定）
+<img src="示例3.jpg"  width="800">
 
 ## 安装
 
@@ -45,6 +50,7 @@
 - `总结聊天 30` - 总结最近30条消息
 - `总结聊天 3小时` - 总结最近3小时内的消息
 - `总结聊天 30 自定义提示` - 总结最近30条消息并使用自定义提示
+- `总结聊天 @群成员` - 根据群成员最近1000条消息总结画像
 
 
 

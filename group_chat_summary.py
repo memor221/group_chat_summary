@@ -499,13 +499,8 @@ user是发言者，content是发言内容,time是发言时间：
             height: 400px;
             margin: 0 auto;
             background-color: var(--bg-tertiary);
-            border-radius: 50%;
-            box-shadow: 
-                40px 40px 0 -5px var(--bg-tertiary),
-                80px 10px 0 -10px var(--bg-tertiary),
-                110px 35px 0 -5px var(--bg-tertiary),
-                -40px 50px 0 -8px var(--bg-tertiary),
-                -70px 20px 0 -10px var(--bg-tertiary);
+            border-radius: 30px; /* 改为圆角矩形 */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
             overflow: visible;
         }
         
@@ -562,7 +557,7 @@ user是发言者，content是发言内容,time是发言时间：
 </head>
 <body>
     <header>
-        <h1>[群名称]总结</h1>
+        <h1>{group_name}群聊总结</h1>
         <p class="date">[日期范围]</p>
         <div class="meta-info">
             <span>总消息数：[数量]</span>
@@ -826,6 +821,182 @@ user是发言者，content是发言内容,time是发言时间：
 </body>
 </html>
 '''
+
+USER_PORTRAIT_PROMPT_TEMPLATE = """
+# 角色
+你是一位经验丰富的数据分析师和用户行为研究员，擅长从文本数据中洞察用户特征并生成结构化的用户画像。同时，你也具备将分析报告转换为精美、结构化HTML文档的能力。
+
+# 任务
+我将提供特定用户在某个群组内的聊天记录。请你根据这些数据，为指定的用户ID生成一份详细的用户画像报告。直接输出一份包含内联CSS样式的精美HTML文档。
+
+# 用户画像分析框架与HTML输出格式
+请严格参照以下结构和维度来构建你的用户画像报告 (直接输出HTML)。对于每个维度，请结合聊天记录中的具体内容或数据点进行分析和阐述，力求客观和准确。聊天记录条数可能不足1000条，请基于实际数量分析。
+
+**HTML结构和样式要求 (直接输出包含以下内联CSS的完整HTML代码):**
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>用户画像 - {user_id}</title>
+    <style>
+        body {{
+            font-family: 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }}
+        .user-portrait-container {{
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 25px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border: 1px solid #e8e8e8;
+        }}
+        .user-portrait-container h1 {{
+            color: #2c3e50;
+            text-align: center;
+            border-bottom: 2px solid #5c96c9;
+            padding-bottom: 15px;
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-size: 2em;
+        }}
+        .portrait-section {{
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #fdfdfd;
+            border-left: 5px solid #5c96c9;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }}
+        .portrait-section h2 {{
+            color: #34495e;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eaeaea;
+        }}
+        .portrait-section ul {{
+            list-style-type: none;
+            padding-left: 0;
+            margin:0;
+        }}
+        .portrait-section li {{
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }}
+        .portrait-section li::before {{
+            content: "•";
+            color: #5c96c9;
+            font-weight: bold;
+            display: inline-block;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }}
+        .portrait-section p {{
+            margin-bottom: 10px;
+        }}
+        .portrait-section p strong {{
+            color: #2980b9;
+            margin-right: 5px;
+        }}
+        .disclaimer {{
+            font-size: 0.85em;
+            color: #7f8c8d;
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }}
+    </style>
+</head>
+<body>
+    <div class="user-portrait-container">
+        <h1>用户画像：{user_id}</h1> <div class="portrait-section">
+            <h2>兴趣点 (Interest Points)</h2>
+            <ul>
+                </ul>
+        </div>
+
+        <div class="portrait-section">
+            <h2>活跃时段 (Active Periods)</h2>
+            <ul>
+                </ul>
+        </div>
+
+        <div class="portrait-section">
+            <h2>喜欢的主题 (Preferred Topics)</h2>
+            <ul>
+                </ul>
+        </div>
+
+        <div class="portrait-section">
+            <h2>讨论风格 (Discussion Style)</h2>
+            <ul>
+                </ul>
+        </div>
+
+        <div class="portrait-section">
+            <h2>在群组中的角色 (Role in the Group)</h2>
+            <ul>
+                </ul>
+        </div>
+
+        <div class="portrait-section">
+            <h2>言论倾向 (Speech Tendencies)</h2>
+            <ul>
+                </ul>
+        </div>
+
+        <div class="portrait-section">
+            <h2>常用词汇/口头禅 (Frequently Used Vocabulary/Catchphrases)</h2>
+            <ul>
+                </ul>
+        </div>
+
+        <div class="portrait-section">
+            <h2>情感色彩 (Emotional Tone)</h2>
+            <ul>
+                </ul>
+        </div>
+
+        <div class="portrait-section">
+            <h2>对特定主题的态度和反应 (Attitude and Reactions to Specific Topics)</h2>
+            <ul>
+                </ul>
+        </div>
+
+        <div class="portrait-section">
+            <h2>可能的改进建议或发展方向 (Potential Improvement Suggestions or Development Directions - 基于已有行为的推测)</h2>
+            <ul>
+                </ul>
+        </div>
+
+        <div class="portrait-section">
+            <h2>推测信息 (Inferred Information)</h2>
+            </div>
+
+        <div class="disclaimer">
+            请注意，此用户画像报告是基于提供的聊天记录数据分析生成的，结论可能存在一定偏差，仅供参考。数据统计截止：{current_date_time}，分析基于用户最近最多1000条发言。
+        </div>
+    </div>
+</body>
+</html>
+"""
+
 conent_list={}
 @plugins.register(
     name="group_chat_summary",
@@ -906,158 +1077,254 @@ class GroupChatSummary(Plugin):
         except Exception as e:
             logger.error(f"[group_chat_summary]数据库初始化异常：{e}")
 
-    # 新增按时间总结
     def on_handle_context(self, e_context: EventContext):
         if e_context["context"].type not in [ContextType.TEXT]:
             return
         msg: ChatMessage = e_context["context"]["msg"]
         content = e_context["context"].content.strip()
-        # 匹配两种命令格式：总结聊天 30 / 总结 3小时
-        if content.startswith("总结聊天") or content.startswith("总结"):
-            reply = Reply()
-            # {{ - reply.type = ReplyType.TEXT # Moved type assignment later }}
-            if msg.other_user_nickname in self.black_chat_name:
-                reply.content = "我母鸡啊"
-                # {{ + }}
+        reply = Reply()
+
+        # Check if the group is blacklisted (assuming other_user_nickname is group name for group messages)
+        # For group messages, msg.other_user_id is the group_id, msg.other_user_nickname might be the group name
+        # For single chat, other_user_id is the other person.
+        # The logic below implies this function is primarily for group chat.
+        if e_context["context"]["isgroup"] and (e_context["context"].get("group_name") in self.black_chat_name):
+            reply.content = "此群聊不支持总结功能。"
+            reply.type = ReplyType.TEXT
+            e_context["reply"] = reply
+            e_context.action = EventAction.BREAK_PASS
+            return
+
+        command_keyword = ""
+        command_body = ""
+
+        if content.startswith("总结聊天 "):
+            command_keyword = "总结聊天"
+            command_body = content[len("总结聊天 "):].strip()
+        elif content.startswith("总结 "):
+            command_keyword = "总结"
+            command_body = content[len("总结 "):].strip()
+        else: # Not a recognized command start
+            return
+
+
+        if not command_body: # e.g., user just typed "总结" or "总结聊天"
+            reply.content = "命令参数缺失。\n" + self.get_help_text()
+            reply.type = ReplyType.TEXT
+            e_context["reply"] = reply
+            e_context.action = EventAction.BREAK_PASS
+            return
+
+        generated_summary_content = ""
+        is_user_portrait_request = False
+        mentioned_user_name = None
+
+        # Check for user portrait request: command body starts with "@"
+        if command_body.startswith("@"):
+            is_user_portrait_request = True
+            # Extract username: everything after "@" up to the first space or end of string
+            # No custom prompt for user portrait as per new requirement
+            potential_username_part = command_body[1:] # Remove "@"
+            mentioned_user_name = potential_username_part.split(maxsplit=1)[0].strip()
+
+            if not mentioned_user_name: # Handles "总结 @"
+                reply.content = "用户名缺失。正确格式：总结 @用户名"
                 reply.type = ReplyType.TEXT
                 e_context["reply"] = reply
                 e_context.action = EventAction.BREAK_PASS
                 return
-            # 解析参数
-            cmd_parts = content.split(maxsplit=2)  # 最多分割2次，确保自定义提示保持完整
-            if len(cmd_parts) < 2:
-                reply.content = "命令格式错误，示例：总结聊天 30 或 总结 3小时 或 总结聊天 30 自定义提示"
-                # {{ + }}
-                reply.type = ReplyType.TEXT
-                e_context["reply"] = reply
-                e_context.action = EventAction.BREAK_PASS
-                return
-            # 提取自定义提示（如果有）
-            custom_prompt = None
-            if len(cmd_parts) >= 3:
-                custom_prompt = cmd_parts[2].strip()
-            # 判断是按条数还是按小时
-            param = cmd_parts[1]
-            time_mode = "小时" in param
+        
+        if not e_context["context"]["isgroup"]:
+            generated_summary_content = "此功能仅限群聊使用。"
+            reply.type = ReplyType.TEXT # ensure type is set
+        elif is_user_portrait_request:
+            # --- USER PORTRAIT LOGIC ---
+            logger.info(f"[group_chat_summary] Initiating user portrait for: @{mentioned_user_name} in group {msg.other_user_id}")
             try:
-                if time_mode:
-                    # 考虑用户可能输入"总结 3小时 自定义提示"格式
-                    hours_part = param.split()[0] if " " in param else param
-                    hours = int(hours_part.replace("小时", ""))
-                    time_threshold = datetime.now() - timedelta(hours=hours)
-                    time_str = time_threshold.strftime("%Y-%m-%d %H:%M:%S")
-                    # 如果自定义提示为None但param中有空格（如"3小时 自定义提示"），则提取提示
-                    if custom_prompt is None and " " in param:
-                        custom_prompt = param.split(" ", 1)[1].strip()
-                else:
-                    # 考虑用户可能输入"总结聊天 30 自定义提示"格式
-                    num_part = param.split()[0] if " " in param else param
-                    number_int = int(num_part)
-                    # 如果自定义提示为None但param中有空格（如"30 自定义提示"），则提取提示
-                    if custom_prompt is None and " " in param:
-                        custom_prompt = param.split(" ", 1)[1].strip()
-            except ValueError:
-                reply.content = "参数必须是数字，例如：总结 3小时 或 总结聊天 30 或 总结聊天 30 自定义提示"
-                # {{ + }}
-                reply.type = ReplyType.TEXT
-                e_context["reply"] = reply
-                e_context.action = EventAction.BREAK_PASS
-                return
-            generated_summary_content = "" # 用于存储生成的文本总结
-            if e_context["context"]["isgroup"]:
-                try:
-                    with sqlite3.connect(self.db_path) as conn:
-                        cursor = conn.cursor()
-                        if time_mode:
-                            # 按时间范围查询
-                            cursor.execute('''
-                                SELECT user_nickname, content, create_time
-                                FROM chat_records
-                                WHERE group_id = ? AND create_time >= ?
-                                ORDER BY create_time DESC
-                            ''', (msg.other_user_id, time_str))
-                        else:
-                            # 按条数查询（原逻辑）
-                            cursor.execute('''
-                                SELECT user_nickname, content, create_time
-                                FROM chat_records
-                                WHERE group_id = ?
-                                ORDER BY create_time DESC
-                                LIMIT ?
-                            ''', (msg.other_user_id, number_int))
-                        records = cursor.fetchall()
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute('''
+                        SELECT user_nickname, content, create_time
+                        FROM chat_records
+                        WHERE group_id = ? AND user_nickname = ?
+                        ORDER BY create_time DESC
+                        LIMIT 1000
+                    ''', (msg.other_user_id, mentioned_user_name))
+                    records = cursor.fetchall()
+                    
+                    if not records:
+                        generated_summary_content = f"在群聊 '{e_context['context'].get('group_name', '本群')}' 中未找到用户 @{mentioned_user_name} 的发言记录。"
+                        reply.type = ReplyType.TEXT
+                    else:
                         chat_list = [
                             {"user": record[0], "content": record[1], "time": record[2]}
                             for record in records
                         ]
-                        chat_list.reverse()  # 保持时间正序
-                        # 根据是否有自定义提示来组装请求内容
-                        if custom_prompt:
-                            # 分割QL_PROMPT，保留分割线前面的内容
-                            prompt_parts = QL_PROMPT.split("-------分割线-------")
-                            # 用户自定义提示替换默认提示
-                            cont = prompt_parts[0] + "#注意：不需要列举聊天记录；请以清晰的层次结构和简洁的语言，通过分析和合理的猜测推断，回答问题，并将内容转换成HTML代码，要求:页面美观自然，柔和色彩，清晰一目了然，不同内容板块可以使用不同的颜色条作为区分，直接输出代码，不需要其他说明，问题：" + custom_prompt + "----聊天记录如下：" + json.dumps(chat_list, ensure_ascii=False)
+                        chat_list.reverse() # Maintain chronological order for AI
+                        logger.info(f"[group_chat_summary] 为用户 @{mentioned_user_name} 构建 chat_list，包含 {len(chat_list)} 条记录。") # <--- 新增日志
+                        chat_list_json_str = json.dumps(chat_list, ensure_ascii=False, indent=2)
+                        #logger.debug(f"[group_chat_summary] chat_list JSON (前200字符): {chat_list_json_str[:200]}") # <--- 新增日志 (DEBUG级别)
+
+
+                        current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        prompt_content = USER_PORTRAIT_PROMPT_TEMPLATE.replace("{user_id}", mentioned_user_name)
+                        # {current_date_time} 占位符在当前的 USER_PORTRAIT_PROMPT_TEMPLATE (Markdown优先那个版本) 中并没有，
+                        # 但如果你的 USER_PORTRAIT_PROMPT_TEMPLATE 是直接输出HTML的版本且包含此占位符，则保留替换。
+                        # 为保险起见，如果模板中没有这个占位符，替换操作不会出错。
+                        prompt_content = prompt_content.replace("{current_date_time}", current_time_str)
+
+                        # 修改 final_prompt_for_ai 的构建方式
+                        final_prompt_for_ai = prompt_content + \
+                                             f"\n\n请严格基于以下提供的JSON格式聊天记录，为用户 @{mentioned_user_name} 生成Markdown格式的用户画像报告，然后将其转换为HTML（如果模板指示如此）。若聊天记录为空或不足，请在报告中明确说明。\n" + \
+                                             f"用户 '{mentioned_user_name}' 在群 '{e_context['context'].get('group_name') or '本群'}' 中的聊天记录 (最近最多1000条)如下：\n" + \
+                                             "```json\n" + \
+                                             chat_list_json_str + \
+                                             "\n```"
+                        #logger.debug(f"[group_chat_summary] 发送给AI的最终提示 (聊天记录部分已包含，此处不重复打印完整JSON): {final_prompt_for_ai.split('```json')[0]}...") # <--- 新增日志 (DEBUG级别)
+
+                        self.current_config_index = 0
+                        generated_summary_content = self.shyl(final_prompt_for_ai)
+
+            except Exception as e:
+                logger.error(f"[group_chat_summary] 生成用户 @{mentioned_user_name} 画像异常：{e}")
+                generated_summary_content = f"生成用户 @{mentioned_user_name} 画像失败，请稍后再试或联系管理员。"
+                reply.type = ReplyType.TEXT
+        else:
+            # --- GROUP SUMMARY LOGIC ---
+            # command_body now contains parameters like "30" or "3小时" or "30 自定义群聊提示"
+            time_mode = "小时" in command_body
+            param_val_str = ""
+            custom_prompt_for_group = None
+
+            temp_parts = command_body.split(maxsplit=1)
+            param_val_str = temp_parts[0] # This is "30" or "3小时"
+            if len(temp_parts) > 1:
+                custom_prompt_for_group = temp_parts[1].strip() # This is the custom group prompt
+
+            try:
+                if time_mode:
+                    hours_str = param_val_str.replace("小时", "").strip()
+                    if not hours_str.isdigit():
+                        raise ValueError("小时数必须是数字")
+                    hours = int(hours_str)
+                    time_threshold = datetime.now() - timedelta(hours=hours)
+                    db_query_time_str = time_threshold.strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    if not param_val_str.isdigit():
+                        raise ValueError("消息数量必须是数字")
+                    number_int = int(param_val_str)
+            except ValueError as ve:
+                reply.content = f"参数格式错误：{ve}。\n" + self.get_help_text()
+                reply.type = ReplyType.TEXT
+                e_context["reply"] = reply
+                e_context.action = EventAction.BREAK_PASS
+                return
+
+            try:
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    if time_mode:
+                        cursor.execute('''
+                            SELECT user_nickname, content, create_time
+                            FROM chat_records
+                            WHERE group_id = ? AND create_time >= ?
+                            ORDER BY create_time ASC
+                        ''', (msg.other_user_id, db_query_time_str)) # ASC for correct order before reversing later if needed
+                    else:
+                        # Fetch N most recent, then reverse if needed by prompt.
+                        # QL_PROMPT expects chronological, so fetch DESC and reverse
+                        cursor.execute('''
+                            SELECT user_nickname, content, create_time
+                            FROM (SELECT user_nickname, content, create_time FROM chat_records
+                                  WHERE group_id = ? ORDER BY create_time DESC LIMIT ?)
+                            ORDER BY create_time ASC;
+                        ''', (msg.other_user_id, number_int))
+                    records = cursor.fetchall()
+                    if not records:
+                        generated_summary_content = "当前指定范围内未找到足够的聊天记录进行群聊总结。"
+                        reply.type = ReplyType.TEXT
+                    else:
+                        chat_list = [
+                            {"user": record[0], "content": record[1], "time": record[2]}
+                            for record in records
+                        ]
+                        # QL_PROMPT expects chronological order (user, content, time)
+                        # The query above now ensures records are already in ASC (chronological) order.
+
+                        group_name_for_prompt = e_context["context"].get("group_name") or "本群聊"
+                        
+                        current_prompt_template = QL_PROMPT
+                        cont = current_prompt_template.replace("{group_name}", group_name_for_prompt)
+                        
+                        if custom_prompt_for_group:
+                            prompt_parts = cont.split("-------分割线-------")
+                            if len(prompt_parts) > 1 :
+                                cont = prompt_parts[0] + \
+                                    f"\n## 用户自定义总结要求\n请特别关注以下方面进行总结：'{custom_prompt_for_group}'\n" + \
+                                    "-------分割线-------" + \
+                                    prompt_parts[1] + \
+                                    "\n-------聊天记录如下-------：\n" + json.dumps(chat_list, ensure_ascii=False, indent=2)
+                            else: # Should not happen if QL_PROMPT is correct
+                                cont += f"\n## 用户自定义总结要求\n请特别关注以下方面进行总结：'{custom_prompt_for_group}'\n" + \
+                                        "\n-------聊天记录如下-------：\n" + json.dumps(chat_list, ensure_ascii=False, indent=2)
+
                         else:
-                            # 使用原有默认提示
-                            cont = QL_PROMPT + "----聊天记录如下：" + json.dumps(chat_list, ensure_ascii=False)
-                        group_name = e_context["context"].get("group_name") or "群聊"
-                        # 替换群名称占位符
-                        cont = cont.replace("{group_name}", group_name)
-                        generated_summary_content = self.shyl(cont) # Store summary content
-                except Exception as e:
-                    logger.error(f"[group_chat_summary]获取聊天记录异常：{e}")
-                    generated_summary_content = "获取聊天记录失败" # Store error message
-            else:
-                generated_summary_content = "只做群聊总结" # Store message
-            # ====== HTML转图片逻辑 或 直接使用文本 ======
+                            cont += "\n-------聊天记录如下-------：\n" + json.dumps(chat_list, ensure_ascii=False, indent=2)
+                        
+                        self.current_config_index = 0
+                        generated_summary_content = self.shyl(cont)
+            except Exception as e:
+                logger.error(f"[group_chat_summary] 获取群聊记录或生成总结异常：{e}")
+                generated_summary_content = "获取群聊记录或生成总结失败。"
+                reply.type = ReplyType.TEXT
+        
+        # --- HTML to Image or Text Reply (Common Logic) ---
+        if not reply.type: # If not set by error handling above
             is_html, html_raw = self._is_html_content(generated_summary_content)
             if is_html:
                 html_block = self.extract_html_block(html_raw)
                 if html_block:
-                    # 生成图片路径
                     image_dir = os.path.join(os.path.dirname(__file__), '../html_to_image/temp')
                     os.makedirs(image_dir, exist_ok=True)
                     timestamp = time.strftime("%Y%m%d_%H%M%S")
-                    image_name = f"{timestamp}_{uuid.uuid4()}.png"
+                    # Differentiate image name slightly for user portraits vs group summaries
+                    image_prefix = "user_portrait" if is_user_portrait_request else "group_summary"
+                    image_name = f"{image_prefix}_{timestamp}_{uuid.uuid4()}.png"
                     image_path = os.path.join(image_dir, image_name)
-                    # 截图
                     try:
-                        asyncio.run(self.html_to_image(html_block, image_path, 1200, 90, 0.5))
+                        # 调整卡片宽度
+                        asyncio.run(self.html_to_image(html_block, image_path, 900, 90, 0.5))
                         if os.path.exists(image_path) and os.path.getsize(image_path) > 0:
                             try:
                                 with open(image_path, 'rb') as f:
                                     image_content = f.read()
-                                # {{ - reply.content = io.BytesIO(image_content) }}
-                                # {{ + Use the wrapper class }}
                                 reply.content = ImageStreamWrapper(image_content)
                                 reply.type = ReplyType.IMAGE
                             except Exception as e:
                                 logger.error(f"[group_chat_summary] 读取或包装图片文件失败: {e}")
-                                reply.content = "读取或包装图片文件失败: " + str(e)
-                                reply.type = ReplyType.TEXT # Fallback to text reply
+                                reply.content = "图片处理失败: " + str(e)
+                                reply.type = ReplyType.TEXT
                         else:
-                            logger.warning(f"[group_chat_summary] HTML转图片成功，但文件无效或大小为0: {image_path}")
-                            reply.content = "HTML转图片成功，但文件无效。"
+                            logger.warning(f"[group_chat_summary] HTML转图片成功，但文件无效: {image_path}")
+                            reply.content = "HTML转图片后文件无效。" + f"\n原始HTML内容:\n{html_block[:1000]}" # Send part of HTML for debug
                             reply.type = ReplyType.TEXT
                     except Exception as e:
                         logger.error(f"[group_chat_summary] HTML转图片异常: {e}")
-                        reply.content = "HTML转图片失败: " + str(e)
+                        reply.content = f"HTML转图片失败: {e}" + f"\n原始HTML内容:\n{html_block[:1000]}" # Send part of HTML for debug
                         reply.type = ReplyType.TEXT
                 else:
-                    logger.warning("[group_chat_summary] 内容判定为HTML，但无法提取HTML块。")
-                    # Could not extract HTML block, send raw summary
-                    reply.content = generated_summary_content
+                    logger.warning("[group_chat_summary] 内容判定为HTML，但无法提取HTML块。发送原始文本。")
+                    reply.content = generated_summary_content 
                     reply.type = ReplyType.TEXT
             else:
-                 # Content is not HTML, send as text
                 reply.content = generated_summary_content
                 reply.type = ReplyType.TEXT
-            # ====== END ======
-            # Ensure reply type is set if not set above (e.g., if no image processing happened)
-            if not reply.type:
-                 reply.type = ReplyType.TEXT # Default to TEXT if type wasn't assigned
-            e_context["reply"] = reply
-            e_context.action = EventAction.BREAK_PASS
+        
+        if not reply.type: # Final fallback to ensure reply.type is always set
+             reply.type = ReplyType.TEXT
+        
+        e_context["reply"] = reply
+        e_context.action = EventAction.BREAK_PASS
 
     def on_receive_message(self, e_context: EventContext):
         if e_context["context"].type not in [
@@ -1099,8 +1366,11 @@ class GroupChatSummary(Plugin):
         except Exception as e:
             logger.error(f"[group_chat_summary]添加聊天记录异常：{e}")
     def get_help_text(self, **kwargs):
-        help_text = "总结聊天+数量 或 总结+N小时；例：总结聊天 30 或 总结 3小时\n"
-        help_text += "支持自定义提示：总结聊天 30 自定义提示 或 总结 3小时 自定义提示"
+        help_text = "群聊总结: 总结聊天 <数量> [自定义提示] 或 总结 <N>小时 [自定义提示]\n"
+        help_text += "  例如: 总结聊天 30 关于今天AI的讨论\n"
+        help_text += "  例如: 总结聊天 2小时\n"
+        help_text += "用户画像总结: 总结聊天 @<用户名>\n"
+        help_text += "  例如: 总结聊天 @李四"
         return help_text
     
     def get_current_config(self):
